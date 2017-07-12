@@ -31,6 +31,11 @@ Check out tunable hyper-parameters:
 python main.py
 ```
 
+## Test
+```bash
+python main.py --eval
+```
+
 ## Notes
 - The model will test the evaluation accuracy after every epoch.
 - As the paper indicated, training on Omniglot with FCE does not do any better but I still implemented them (as far as I'm concerned there are no repos that fully implement the FCEs by far).
