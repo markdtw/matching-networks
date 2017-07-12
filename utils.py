@@ -16,108 +16,79 @@ def read_omniglot():
     omniglot_train = '/home/one-shot-dataset/omniglot/python/images_background/' 
     omniglot_eval = '/home/one-shot-dataset/omniglot/python/images_evaluation/' 
     
+    count = 0
     data = []
     for r in [omniglot_train, omniglot_eval]:
-        classes = sorted(glob.glob(r + '*'))
-        for i, c in enumerate(tqdm(classes)):
-            alphabets = sorted(glob.glob(c + '/*'))
+        classes = glob.glob(r + '*')
+        for i, cls in enumerate(tqdm(classes)):
+            alphabets = glob.glob(cls + '/*')
             for j, a in enumerate(alphabets): # a = [0, num_of_chars]
-                characters = sorted(glob.glob(a + '/*'))
+                characters = glob.glob(a + '/*')
                 raws = []
                 for k, ch in enumerate(characters): # k = [0, 19]
                     raw = scipy.misc.imread(ch)
                     raw = scipy.misc.imresize(raw, (28, 28))
-                    raw = raw[:, :, np.newaxis] # (28, 28, 1)
-                    raws.append(raw)
-                raws = np.asarray(raws)
-                data.append(raws)
-    data = np.asarray(data)
-    np.save('omniglot.npy', data)
+                    if count < 1200:
+                        for l, dg in enumerate([0, 90, 180, 270]):
+                            raw_rot = scipy.misc.imrotate(raw, dg)
+                            raw_rot = raw_rot[:, :, np.newaxis] # (28, 28, 1)
+                            raws.append(raw_rot)
+                    else:
+                        raw = raw[:, :, np.newaxis] # (28, 28, 1)
+                        raws.append(raw)
+                count += 1
+                data.append(np.asarray(raws))
+    np.save('omniglot.npy', np.asarray(data))
+
             
 class Data_loader():
 
-    def __init__(self, batch_size, n_way=5, k_shot=1):
+    def __init__(self, batch_size, n_way=5, k_shot=1, train_mode=True):
         if not os.path.exists('omniglot.npy'):
-            read_omniglot()
+           read_omniglot()
 
-        omniglot_images = np.load('omniglot.npy')
-        omniglot_labels = np.arange(0, omniglot_images.shape[0])
         self.batch_size = batch_size
-        
-        self.train_images = omniglot_images[:1200] # (1200, 20, 28, 28, 1)
-        self.train_labels = omniglot_labels[:1200] # (1200,)
-        self.train_classes = self.train_images.shape[0]
-        
-        self.test_images = omniglot_images[1200:]  # (423, 20, 28, 28, 1)
-        self.test_labels = omniglot_labels[1200:]  # (423,)
-        self.test_classes = self.test_images.shape[0]
-
         self.n_way = n_way  # 5 or 20, how many classes the model has to select from
         self.k_shot = k_shot # 1 or 5, how many times the model sees the example
-        self.num_samples = omniglot_images.shape[1]
-        self.iters = self.train_classes // self.n_way // self.k_shot * self.num_samples // self.batch_size
+    
+        omniglot = np.load('omniglot.npy')
 
-        self.reset_episode()
-
-    def single_example(self):
-        """Return a single example"""
-        # build the support set x
-        x_set = []
-        y_set = []
-        for n in xrange(self.n_way): # from n-classes, select k-samples
-            for k in xrange(self.k_shot):
-                x_set.append(self.train_images[self.n_ptr + n][self.k_ptr + k])
-                y_set.append(n) #self.train_labels[self.n_ptr + n])
-
-        # the target x_hat
-        if self.k_ptr + 1 >= self.num_samples:
-            select_k = 0
+        if train_mode:
+            self.images = np.stack(omniglot[:1200])
+            self.num_classes = self.images.shape[0]
+            self.num_samples = self.images.shape[1]
         else:
-            select_k = self.k_ptr + 1
-        x_hat = self.train_images[self.n_ptr][select_k]
-        y_hat = 0 #self.train_labels[self.n_ptr]
+            self.images = np.stack(omniglot[1200:])
+            self.num_classes = self.images.shape[0]
+            self.num_samples = self.images.shape[1]
 
-        return np.asarray(x_set), np.asarray(y_set), x_hat, y_hat
+        self.iters = self.num_classes * self.num_samples // self.batch_size // self.n_way // self.k_shot
+
+        np.random.shuffle(self.images)
 
     def next_batch(self):
         x_set_batch = []
         y_set_batch = []
         x_hat_batch = []
         y_hat_batch = []
-        for b in xrange(self.batch_size):
-            x_set, y_set, x_hat, y_hat = self.single_example()
+        for _ in xrange(self.batch_size):
+            x_set = []
+            y_set = []
+            x = []
+            y = []
+            classes = np.random.permutation(self.num_classes)[:self.n_way]
+            target_class = np.random.randint(self.n_way)
+            for i, c in enumerate(classes):
+                samples = np.random.permutation(self.num_samples)[:self.k_shot+1]
+                for s in samples[:-1]:
+                    x_set.append(self.images[c][s])
+                    y_set.append(i)
+
+                if i == target_class:
+                    x_hat_batch.append(self.images[c][samples[-1]])
+                    y_hat_batch.append(i)
+
             x_set_batch.append(x_set)
             y_set_batch.append(y_set)
-            x_hat_batch.append(x_hat)
-            y_hat_batch.append(y_hat)
-
-            num_classes = self.train_classes
-            if self.n_ptr + self.n_way < num_classes:
-                # iterate through all the classes first
-                self.n_ptr += self.n_way
-            else:
-                # all classes traversed, reset class pointer and increment sample pointer
-                self.n_ptr = 0
-                self.k_ptr += self.k_shot
-            
-            if self.k_ptr + self.k_shot <= self.num_samples:
-                # same as above but let the class pointer decide k_ptr's fate
-                pass
-            else:
-                # all samples and classes traversed, reset everything
-                self.reset_episode()
 
         return np.asarray(x_set_batch), np.asarray(y_set_batch), np.asarray(x_hat_batch), np.asarray(y_hat_batch)
-
-    def reset_episode(self):
-        self.n_ptr = 0
-        self.k_ptr = 0
-
-        p = np.random.permutation(self.train_images.shape[0]) # shuffle x and y together
-        self.train_images = self.train_images[p]
-        self.train_labels = self.train_labels[p]
-
-#dl = Data_loader(32)
-#a, b, c, d = dl.next_batch()
-#pdb.set_trace()
-#print ('done')
