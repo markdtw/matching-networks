@@ -16,7 +16,7 @@ Tensorflow implementation of [Matching Networks for One Shot Learning by Vinyals
 ## Preparation
 1. Download and extract omniglot dataset, modify `omniglot_train` and `omniglot_test` in `utils.py` to your location.
 
-2. First time training will generate `omniglot.npy` to the directory.
+2. First time training will generate `omniglot.npy` to the directory. The first 1200 classes are augmented for training so the shape is _(1200, 80, 28, 28, 1)_ which stands for 1200 classes, 20 * 4 90-degree-transform (0, 90, 180, 270), height, width, channel. Rest of the classes are left unchanged (423, 20, 28, 28, 1).
 
 ## Train
 ```bash
@@ -31,12 +31,10 @@ Check out tunable hyper-parameters:
 python main.py
 ```
 
-## Test
-_UNDER CONSTRUCTION_
-
 ## Notes
-- FCE (Fully Conditional Embeddings) are not implemented yet but the original result trained on Omniglot did not require that anyway.
-- `Data_loader.py` is not done!!
+- The model will test the evaluation accuracy after every epoch.
+- As the paper indicated, training on Omniglot with FCE does not do any better but I still implemented them (as far as I'm concerned there are no repos that fully implement the FCEs by far).
+- The authors did not mentioned the value of time steps K in FCE_f, in the [sited paper](https://arxiv.org/abs/1511.06391), K is tested with 0, 1, 5, 10 as shown in table 1.
 - Issues are welcome!
 
 ## Resources
