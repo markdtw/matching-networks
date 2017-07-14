@@ -46,9 +46,9 @@ class Data_loader():
         self.n_way = n_way  # 5 or 20, how many classes the model has to select from
         self.k_shot = k_shot # 1 or 5, how many times the model sees the example
     
-        #omniglot = np.load('omniglot.npy')
-        omniglot = np.load('data_zergylord.npy')
-        omniglot = np.reshape(omniglot, [-1, 20, 28, 28, 1])
+        omniglot = np.load('omniglot.npy')
+        #omniglot = np.load('data_zergylord.npy')
+        #omniglot = np.reshape(omniglot, [-1, 20, 28, 28, 1])
         np.random.shuffle(omniglot)
         assert omniglot.dtype == np.float32
         assert omniglot.max() == 1.0
