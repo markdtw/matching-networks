@@ -68,7 +68,7 @@ def train(args):
 
     for ep in xrange(args.ep):
         # start training
-        correct = 0
+        correct = []
         for step in xrange(train_loader.iters):
             x_set, y_set, x_hat, y_hat = train_loader.next_batch()
             feed_dict = {model.support_set_image_ph: x_set,
@@ -76,26 +76,26 @@ def train(args):
                          model.example_image_ph: x_hat,
                          model.example_label_ph: y_hat}
             logits, prediction, loss, _ = sess.run([model.logits, model.pred, model.loss_op, train_op], feed_dict=feed_dict)
-            correct += np.sum(np.equal(prediction, y_hat))
+            correct.append(np.equal(prediction, y_hat))
             
             if step % 100 == 0:
-                print ('ep: %3d, step: %3d, loss: %.3f' % (ep+1, step, loss))
+                print ('ep: %3d, step: %3d, loss: %.3f, acc: %.2f%%' % (ep+1, step, loss, np.mean(np.equal(prediction, y_hat)) * 100))
 
-        print ('  Training accuracy: %.2f%%' % (correct * 100 / (train_loader.iters * args.bsize)))
+        print ('  Training accuracy: %.2f%%' % (np.mean(np.stack(correct)) * 100))
         checkpoint_path = os.path.join('log', 'matchnet.ckpt')
         saver.save(sess, checkpoint_path, global_step=ep+1)
 
         # training for one epoch done, evaluate on test set
-        correct = 0
-        for step in xrange(eval_loader.iters + 1):
+        correct = []
+        for step in xrange(eval_loader.iters):
             x_set, y_set, x_hat, y_hat = eval_loader.next_batch()
             feed_dict = {model.support_set_image_ph: x_set,
                          model.support_set_label_ph: y_set,
                          model.example_image_ph: x_hat}
             logits, prediction = sess.run([model.logits, model.pred], feed_dict=feed_dict)
-            correct += np.sum(np.equal(prediction, y_hat))
+            correct.append(np.equal(prediction, y_hat))
 
-        print ('Evaluation accuracy: %.2f%%' % (correct * 100 / ((eval_loader.iters + 1) * args.bsize)))
+        print ('Evaluation accuracy: %.2f%%' % (np.mean(np.stack(correct)) * 100))
 
     print ('Done.')
 
@@ -106,9 +106,9 @@ if __name__ == '__main__':
     parser.add_argument('--lr', metavar='', type=float, default=1e-3, help='learning rate.')
     parser.add_argument('--ep', metavar='', type=int, default=100, help='number of epochs.')
     parser.add_argument('--bsize', metavar='', type=int, default=32, help='batch size.')
-    parser.add_argument('--n-way', metavar='', type=int, default=5, help='number of classes.')
+    parser.add_argument('--n-way', metavar='', type=int, default=20, help='number of classes.')
     parser.add_argument('--k-shot', metavar='', type=int, default=1, help='number of chances the model see.')
-    parser.add_argument('--use-fce', metavar='', type=bool, default=True, help='use fully conditional embedding or not.')
+    parser.add_argument('--use-fce', metavar='', type=bool, default=False, help='use fully conditional embedding or not.')
     parser.add_argument('--modelpath', metavar='', type=str, default=None, help='trained tensorflow model path.')
     args, unparsed = parser.parse_known_args()
     if len(unparsed) != 0: raise SystemExit('Unknown argument: {}'.format(unparsed))

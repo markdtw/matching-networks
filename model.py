@@ -73,15 +73,19 @@ class Matching_Nets():
         return output
 
     def cosine_similarity(self, target, support_set):
-        """the c() function that calculate the cosine similarity between (embedded) support set and (embedded) target"""
-        target_normed = tf.nn.l2_normalize(target, 1) # (batch_size, 64)
+        """the c() function that calculate the cosine similarity between (embedded) support set and (embedded) target
+        
+        note: the author uses one-sided cosine similarity as zergylord said in his repo (zergylord/oneshot)
+        """
+        #target_normed = tf.nn.l2_normalize(target, 1) # (batch_size, 64)
+        target_normed = target
         sup_similarity = []
         for i in tf.unstack(support_set):
             i_normed = tf.nn.l2_normalize(i, 1) # (batch_size, 64)
-            similarity = tf.reduce_sum(tf.multiply(target_normed, i_normed), axis=1) # (batch_size, )
+            similarity = tf.matmul(tf.expand_dims(target_normed, 1), tf.expand_dims(i_normed, 2)) # (batch_size, )
             sup_similarity.append(similarity)
 
-        return tf.stack(sup_similarity, axis=1) # (batch_size, n * k)
+        return tf.squeeze(tf.stack(sup_similarity, axis=1)) # (batch_size, n * k)
 
     def build(self, support_set_image, support_set_label, image):
         """the main graph of matching networks"""
@@ -103,7 +107,7 @@ class Matching_Nets():
 
         # \hat{y} = \sum_{i=1}^{k} a(\hat{x}, x_i)y_i
         y_hat = tf.matmul(tf.expand_dims(attention, 1), tf.one_hot(support_set_label, self.n_way))
-        self.logits = tf.squeeze(y_hat)   # (batch_size, n * k)
+        self.logits = tf.squeeze(y_hat)   # (batch_size, n)
 
         self.pred = tf.argmax(self.logits, 1)
 
