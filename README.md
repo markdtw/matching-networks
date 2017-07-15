@@ -16,7 +16,7 @@ Tensorflow implementation of [Matching Networks for One Shot Learning by Vinyals
 ## Preparation
 1. Download and extract omniglot dataset, modify `omniglot_train` and `omniglot_test` in `utils.py` to your location.
 
-2. First time training will generate `omniglot.npy` to the directory. The shape should be_(1632, 80, 28, 28, 1)_, meaning 1623 classes, 20 * 4 90-degree-transforms (0, 90, 180, 270), height, width, channel. 1200 classes used for training and 423 used for testing.
+2. First time training will generate `omniglot.npy` to the directory. The shape should be _(1632, 80, 28, 28, 1)_ , meaning 1623 classes, 20 * 4 90-degree-transforms (0, 90, 180, 270), height, width, channel. 1200 classes used for training and 423 used for testing.
 
 ## Train
 ```bash
